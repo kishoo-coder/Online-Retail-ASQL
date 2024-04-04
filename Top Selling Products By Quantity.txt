@@ -1,0 +1,5 @@
+-------Top Selling Products By Quantity
+select distinct stockcode ,
+sum(Quantity) over(partition by stockcode) as Total_Quantity_by_Product
+from tableretail
+order by Total_Quantity_by_Product DESC;

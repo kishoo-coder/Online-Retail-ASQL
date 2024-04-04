@@ -1,0 +1,79 @@
+--- Q3 -1
+WITH PURCHASE_DATA AS (
+    SELECT 
+        cust_id, 
+        Calendar_Dt, 
+        ROW_NUMBER() OVER (PARTITION BY cust_id ORDER BY Calendar_Dt) AS rn
+    FROM 
+        customers_amount
+),
+consecutive_days  AS (
+    SELECT 
+        cust_id, 
+        Calendar_Dt, 
+        Calendar_Dt - rn AS date_diff
+    FROM 
+        PURCHASE_DATA
+)
+SELECT 
+    cust_id, 
+    MAX(consecutive_days) AS max_consecutive_days
+FROM (
+    SELECT 
+        cust_id, 
+        COUNT(date_diff) AS consecutive_days
+    FROM 
+        consecutive_days 
+    GROUP BY 
+        cust_id, date_diff
+)
+GROUP BY 
+    cust_id
+ORDER BY 
+    cust_id;
+-----------------------
+-------Q3 -2-----------------
+WITH purchase_data AS (
+    SELECT 
+        CUST_ID,
+        CALENDAR_DT AS PURCHASE_DATE,
+        AMT_LE,
+        SUM(AMT_LE) OVER (PARTITION BY CUST_ID ORDER BY CALENDAR_DT) AS CUMULATIVE_AMT
+    FROM 
+        customers_amount
+)
+SELECT 
+    AVG(DAYS_TO_THRESHOLD) AS AVG_DAYS_TO_THRESHOLD,
+    trunc(AVG(TRANSACTIONS_TO_THRESHOLD)) AS AVG_TRANSACTIONS_TO_THRESHOLD
+FROM (
+    SELECT 
+        CUST_ID,
+        MIN(DAYS_TO_THRESHOLD) AS DAYS_TO_THRESHOLD,
+        MIN(TRANSACTIONS_TO_THRESHOLD) AS TRANSACTIONS_TO_THRESHOLD
+    FROM (
+        SELECT 
+            CUST_ID,
+            MIN(DAYS) AS DAYS_TO_THRESHOLD,
+            MIN(TRANSACTIONS) AS TRANSACTIONS_TO_THRESHOLD
+        FROM (
+            SELECT 
+                CUST_ID,
+                PURCHASE_DATE - FIRST_PURCHASE_DATE AS DAYS,
+                ROW_NUMBER() OVER (PARTITION BY CUST_ID ORDER BY PURCHASE_DATE) AS TRANSACTIONS
+            FROM (
+                SELECT 
+                    CUST_ID,
+                    PURCHASE_DATE,
+                    CUMULATIVE_AMT,
+                    MIN(CASE WHEN CUMULATIVE_AMT >= 250 THEN PURCHASE_DATE END) OVER (PARTITION BY CUST_ID ORDER BY PURCHASE_DATE) AS FIRST_PURCHASE_DATE
+                FROM 
+                    purchase_data
+            )
+        )
+        WHERE DAYS IS NOT NULL
+        GROUP BY CUST_ID
+    )
+    GROUP BY CUST_ID
+)
+
+

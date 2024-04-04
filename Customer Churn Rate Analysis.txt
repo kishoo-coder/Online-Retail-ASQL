@@ -1,0 +1,4 @@
+select distinct TO_CHAR(TO_DATE(INVOICEDATE,'MM/DD/YYYY HH24:MI'),'MM/YYYY') as INVOICEDATE ,
+ count(distinct customer_id) over (partition by TO_CHAR(TO_DATE(INVOICEDATE,'MM/DD/YYYY HH24:MI'),'MM/YYYY')) as NumberOfCustomers
+from tableretail
+order by INVOICEDATE;

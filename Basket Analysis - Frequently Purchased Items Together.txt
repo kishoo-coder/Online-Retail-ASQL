@@ -1,0 +1,15 @@
+with Transactions as (
+    select Invoice, StockCode
+    from tableRetail
+    group by Invoice, StockCode
+),
+Basket_Analysis as (
+    select t1.StockCode "First Item", t2.StockCode "Second Item", count(*) "Times Bought Together"
+    from Transactions t1
+    join Transactions t2 on t1.Invoice = t2.Invoice and t1.StockCode < t2.StockCode
+    group by t1.StockCode, t2.StockCode
+)
+select "First Item", "Second Item", "Times Bought Together"
+from Basket_Analysis
+where "Times Bought Together" >= 8
+order by "Times Bought Together" desc;

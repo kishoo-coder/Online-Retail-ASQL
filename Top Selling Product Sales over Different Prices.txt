@@ -1,0 +1,4 @@
+-- Top Selling Products
+SELECT distinct STOCKCODE, sum(QUANTITY) over(partition by stockcode,price) as Quantity , PRICE ,SUM(QUANTITY*PRICE) over(partition by stockcode,price) AS TOTAL_SOLD
+FROM tableretail
+ORDER BY TOTAL_SOLD DESC;

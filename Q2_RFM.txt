@@ -1,0 +1,65 @@
+WITH RAC AS (
+    SELECT 
+        Customer_ID, 
+        "Last Value", 
+        "Reference Date", 
+        trunc("Reference Date" - "Last Value") AS "Recency", 
+        "Frequency", 
+        round("monetary"/1000,2) AS "monetary"
+    FROM (
+        SELECT DISTINCT 
+            Customer_ID,
+            LAST_VALUE(TO_DATE(invoicedate, 'mm/dd/yyyy HH24:MI')) OVER (ORDER BY TO_DATE(invoicedate, 'mm/dd/yyyy HH24:MI') RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS "Reference Date",
+            LAST_VALUE(TO_DATE(invoicedate, 'mm/dd/yyyy HH24:MI')) OVER (PARTITION BY Customer_ID ORDER BY TO_DATE(invoicedate, 'mm/dd/yyyy HH24:MI') RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS "Last Value",
+            COUNT(DISTINCT invoice) OVER (PARTITION BY customer_id) AS "Frequency",
+            SUM(QUANTITY*PRICE) OVER (PARTITION BY Customer_ID) AS "monetary"
+        FROM 
+            tableRetail
+    )
+)
+SELECT Customer_ID,
+    "Recency",
+    "Frequency",
+    "monetary",
+    "r_score",
+    "fm_score",
+    CASE 
+        WHEN "r_score" = 5 AND "fm_score" IN (5, 4) THEN 'Champions'
+        WHEN "r_score" = 4 AND "fm_score" = 5 THEN 'Champions'
+        WHEN "r_score" = 5 AND "fm_score" = 2 THEN 'Potential Loyalists'
+        WHEN "r_score" = 4 AND "fm_score" IN (2 , 3) THEN 'Potential Loyalists'
+        WHEN "r_score" = 3 AND "fm_score" = 3 THEN 'Potential Loyalists'
+        WHEN "r_score" = 5 AND "fm_score" = 3 THEN 'Loyal Customers'
+        WHEN "r_score" = 4 AND "fm_score" = 4 THEN 'Loyal Customers'
+        WHEN "r_score" = 3 AND "fm_score" IN (4 , 5) THEN 'Loyal Customers'
+        WHEN "r_score" = 5 AND "fm_score" = 1 THEN 'Recent Customers'
+        WHEN "r_score" = 4 AND "fm_score" = 1 THEN 'Promising'
+        WHEN "r_score" = 3 AND "fm_score" = 1 THEN 'Promising'
+        WHEN "r_score" = 3 AND "fm_score" = 2 THEN 'Customers Needing Attention'
+        WHEN "r_score" = 2 AND "fm_score" IN (2, 3) THEN 'Customers Needing Attention'
+        WHEN "r_score" = 1 AND "fm_score" = 3 THEN 'At Risk'
+        WHEN "r_score" = 2 AND "fm_score" IN (4, 5) THEN 'At Risk'
+        WHEN "r_score" = 1 AND "fm_score" = 2 THEN 'Hibernating'
+        WHEN "r_score" = 1 AND "fm_score" IN (4, 5) THEN 'Cant Lose Them'
+        WHEN "r_score" = 1 AND "fm_score" = 1 THEN 'Lost'
+        ELSE 'Undefined' 
+    END AS "cust_segment"
+    -- AVG("Frequency" +"monetary") as fm
+    from (select NTILE(5) OVER (ORDER BY "fm_avg" DESC) AS "fm_score",Customer_ID,
+    "Recency",
+    "Frequency",
+    "monetary",
+    "r_score"
+    from (select
+    Customer_ID,
+    "Recency",
+    "Frequency",
+    "monetary",
+    NTILE(5) OVER (ORDER BY "Recency" DESC) AS "r_score",
+    --ntile(5) over(order by "Frequency" desc) as "f_score",
+    --ntile(5) over(order by "monetary" desc) as "m_score",
+    ("Frequency" + "monetary") / 2 AS "fm_avg"
+FROM 
+    RAC
+ORDER BY 
+    Customer_ID));
